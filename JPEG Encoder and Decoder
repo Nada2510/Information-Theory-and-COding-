@@ -1,0 +1,533 @@
+#installing the needed Libraies in the Project 
+!pip install opencv-python
+import cv2
+import sys
+import math 
+import heapq
+import numpy as np
+from PIL import Image
+from PIL import Image as PILImage
+from collections import defaultdict
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+def Divide_Image_Into_Blocks(Image_Path):
+    # Read the image from its path and convert it from RGB scale to grayscale
+    Image = cv2.imread(Image_Path, cv2.IMREAD_GRAYSCALE)
+    # Get the height of the image && width
+    Height,Width = Image.shape
+    # Calculate the number of blocks in height and store it in Num_Blocks_In_Height
+    Num_Blocks_In_Height = Height // 8
+    # Calculate the number of blocks in width and store it in Num_Blocks_In_Width
+    Num_Blocks_In_Width = Width // 8
+    # Dividing the image into blocks of 8x8 pixels and storing the Blocks in the Blocks List
+    Blocks = []
+    # Iterate over the number of Blocks in height
+    for i in range(Num_Blocks_In_Height):
+        # Iterate over the number of Blocks in width
+        for j in range(Num_Blocks_In_Width):
+            # Create an empty array with zeros
+            Block = np.zeros((8, 8), dtype=np.uint8)
+            # Filling the Block with pixels from the image
+            for M in range(8):
+                for N in range(8):
+                    Block[M, N] = Image[i*8+M,j*8+N]
+            Blocks.append(Block)
+    return Blocks,Height, Width 
+
+# Divide the image into blocks
+Blocks,Height,Width= Divide_Image_Into_Blocks("G:\Documents\CIE_425\projects\Juliasetsdkjpegsizeb.jpg")
+#Remove the comments to test the function 
+print(Blocks)
+#Printing just one Block
+#Printing first Block 
+#print(Blocks[0])
+#Printing the second Block 
+#print(Blocks[1])
+#print(Height)
+#print(Width)
+# Load the image using matplot Libray 
+image = mpimg.imread("G:\Documents\CIE_425\projects\Juliasetsdkjpegsizeb.jpg")
+# Display the image
+plt.imshow(image)
+# Turn off the axis labels
+plt.axis('off')  
+# Showing the image 
+plt.show()
+
+
+def DCT_2D(image: np.ndarray):
+    #inilizating an Array for DCT coefficinets 
+    DCT_Coefficients=np.zeros((8,8))
+    #Loop over the height and width of each Block 
+    for u in range(8):
+        for v in range(8):
+            sum=0
+            for x in range(8):
+                for y in range(8):
+                    #Computing the DCT coefficient  
+                    sum +=image[x,y]*math.cos((((2*x)+1)*u*np.pi)/16)*math.cos((((2*y)+1)*v*np.pi)/16)
+            DCT_Coefficients[u,v]=sum
+    #Normalizing DCT_Coefficients with u=0 and v=0 by dividing /64
+    DCT_Coefficients[0,0]=DCT_Coefficients[0,0]/64
+    #Normalizing DCT_Coefficients with u=0 or v=0
+    DCT_Coefficients[0,1:]=DCT_Coefficients[0,1:]/32
+    DCT_Coefficients[1:,0]=DCT_Coefficients[1:,0]/32
+    #Normalizing the other Coefficients 
+    DCT_Coefficients[1:,1:]=DCT_Coefficients[1:,1:]/16
+    return DCT_Coefficients
+
+# Inilizating a matrix for DCT Coefficients 
+DCT_Coeffiecients = []
+#Applying DCT on the Blocks 
+for Block in Blocks:
+    DCT=DCT_2D(Block)
+    #Is Rounding Needed or Not 
+    DCT=np.round(DCT)
+    DCT_Coeffiecients.append(DCT.astype(int))
+#Displaying the OutPut of DCT Coefficients 
+print(DCT_Coeffiecients)
+#print(DCT_Coeffiecients[0])
+#print(DCT_Coeffiecients[1])
+# Define quantization tables
+#Low Compression Table 
+Quantization_table_1 = np.array([[1,1,1,1,1,2,2,4],
+                               [1,1,1,1,1,2,2,4],
+                               [1,1,1,1,2,2,2,4],
+                               [1,1,1,1,2,2,4,8],
+                               [1,1,2,2,2,2,4,8],
+                               [2,2,2,2,2,4,8,8],
+                               [2,2,2,4,4,8,8,16],
+                               [4,4,4,4,8,8,16,16]])
+#High Compression Table 
+Quantization_table_2 = np.array([[1,2,4,8,16,32,64,128],
+                               [2,4,4,8,16,32,64,128],
+                               [4,4,8,16,32,64,128,128],
+                               [8,8,16,32,64,128,128,256],
+                               [16,16,32,64,128,128,256,256],
+                               [32,32,64,128,128,256,256,256],
+                               [64,64,128,128,256,256,256,256],
+                               [128,128,128,256,256,256,256,256]])
+
+def Quantization(DCT_Coeffiecient, Quantization_table):
+    # Perform element-wise division and round to the nearest integer
+    Quantized_Block = np.divide(DCT_Coeffiecient,Quantization_table).astype(np.int32)
+    return  Quantized_Block
+
+
+Quantized_Blocks_1 = []
+Quantized_Blocks_2 = []
+#Testing the function for both Quantization tables 
+for DCT_Coeffiecient in DCT_Coeffiecients:
+    quantized_Blocks_1 = Quantization(DCT_Coeffiecient, Quantization_table_1)
+    quantized_Blocks_2 = Quantization(DCT_Coeffiecient, Quantization_table_2)
+    Quantized_Blocks_1.append(quantized_Blocks_1)
+    Quantized_Blocks_2.append(quantized_Blocks_2)
+#Testing the Output 
+print(Quantized_Blocks_1)
+#print(Quantized_Blocks_2)
+#Showing the argumnet at Block 0 
+#print(Quantized_Blocks_1[0])
+#print(Quantized_Blocks_2[0])
+#Showing the argumnet at Block 1
+#print(Quantized_Blocks_1[1])
+#Showing the argumnet at Block 2
+#print(Quantized_Blocks_1[2])
+#Showing the argumnet at Block 3
+#print(Quantized_Blocks_1[22])
+
+
+def Zigzag_Transform(Block):
+    # Defining the Height and the width of the Block
+    Height, Width = Block.shape
+    # Creating an empty array for the output of ZigZag_Transform
+    One_Dimension_vector = []
+    # Define the ZigZag transform Sequence
+    ZigZag_Traversal_Sequence = np.array([[0, 1, 8, 16, 9, 2, 3, 10],
+                                          [17, 24, 32, 25, 18, 11, 4, 5],
+                                          [12, 19, 26, 33, 40, 48, 41, 34],
+                                          [27, 20, 13, 6, 7, 14, 21, 28],
+                                          [35, 42, 49, 56, 57, 50, 43, 36],
+                                          [29, 22, 15, 23, 30, 37, 44, 51],
+                                          [58, 59, 52, 45, 38, 31, 39, 46],
+                                          [53, 60, 61, 54, 47, 55, 62, 63]])
+    
+    # Transforming the block from 2-D into 1-D using ZigZag Sequence
+    for index in range(Height * Width):
+        i = ZigZag_Traversal_Sequence[index // Width, index % Width] // Width
+        j = ZigZag_Traversal_Sequence[index // Width, index % Width] % Width
+        One_Dimension_vector.append(Block[i, j])
+    
+    return One_Dimension_vector
+
+# Transforming the First Quantization Block 
+Zigzag_Vectors_1 = []
+for Quantized_Block_1 in Quantized_Blocks_1:
+    one_Dimension_vector=Zigzag_Transform(Quantized_Block_1)
+    Zigzag_Vectors_1.append(one_Dimension_vector)
+#Printing the data in the array that has been transfomred from2 Dimension into one 
+print(Zigzag_Vectors_1)
+######################################################################
+# Transforming the Second Quantization Block 
+Zigzag_Vectors_2 = []
+for Quantized_Block_2 in Quantized_Blocks_2:
+    one_Dimension_vector=Zigzag_Transform(Quantized_Block_2)
+    Zigzag_Vectors_2.append(one_Dimension_vector)
+#Printing the data in the array that has been transfomred from2 Dimension into one 
+print(Zigzag_Vectors_2)
+
+
+def Run_Length_Code(ZigZag_Vectors):
+    #Creating an empty array for the encoded data 
+    Encoded_ZigZag_Vectors = []
+    #Compressing the data by counting the number of zeros in each tuple and compress it to zero and it's repitaions to represnet the zero and it's number of repitations 
+    for array in ZigZag_Vectors:
+        #inilizaing a variable for count of zers 
+        Count = 0
+        #Looping on every element in the array 
+        for Element in array:
+            #increment the Count if the Element is Zero
+            if Element == 0:
+                Count += 1
+            else:
+                if Count > 0:
+                    Encoded_ZigZag_Vectors.extend([0, Count])
+                    Count = 0
+                Encoded_ZigZag_Vectors.append(Element)
+        if Count > 0:
+            Encoded_ZigZag_Vectors.extend([0, Count])
+
+    return Encoded_ZigZag_Vectors
+
+
+
+#Compressing the output of the ZigZag vector one 
+Compressed_Stream_1=Run_Length_Code(Zigzag_Vectors_1)
+#Printing the Compressed stream of the first Zig-Zag vector 
+print(Compressed_Stream_1)
+######################################################################
+#Compressing the output of the ZigZag vector two
+Compressed_Stream_2=Run_Length_Code(Zigzag_Vectors_2)
+#Printing the Compressed stream 
+print(Compressed_Stream_2)
+
+
+# Creating a Node in the Huffman tree that Contains the Elements and it's frequencies 
+# Creating a Class called Huffman Node in which two functions are included 
+# 1)Function for inilization the Node 
+# 2)Another function for Storing the Nodes based on their frequencies  
+class HuffmanNode:
+    def __init__(self, value=None, freq=None):
+        self.value = value
+        self.freq = freq
+        self.left = None
+        self.right = None
+#This function enables Nodes to be stored based on their Frequencies 
+    def __lt__(self, other):
+            return self.freq < other.freq
+
+def Build_FREQ_Table(Array):
+   #Creating a dictionary of Values and it's Frequencies  
+      Frequency_Table = defaultdict(int)
+      #Inilizating the table 
+      for value in Array:
+          Frequency_Table[value] += 1
+      return Frequency_Table
+def Build_Huffman_Tree(Frequency_Table):
+    # Creating a Priority Queue for Storing Nodes 
+    Priority_Queue = []
+    #Inilization the Priority Queue with Nodes of Values and its Frequncies 
+    for value,freq in Frequency_Table.items():
+        #Assinging the an object of HuffmanNode into new variable Called Node 
+        Node=HuffmanNode(value,freq)
+        #Pushing the Node into Priority Quue 
+        heapq.heappush(Priority_Queue, Node)
+        #Constructing the Huffman Tree By adding the Frequency of each two CHilderns based on their ordering and creating a new Parent and Pushing this Parent in the Priority Queu 
+    while len(Priority_Queue) > 1:
+        #Poping a Node from the Priority Queue and store it into Left Node 
+        Left_Node = heapq.heappop(Priority_Queue)
+        #Poping a  Node from the Priority Queue  and stor it into Right Node 
+        Right_Node = heapq.heappop(Priority_Queue)
+        #Creating a new Node Called Parent Node , that store the addition of two frequncies and have a None value 
+        Parent_Node = HuffmanNode(None,(Left_Node.freq+Right_Node.freq))
+        #Storing the Left Node to be Left Node for Parent
+        Parent_Node.left = Left_Node
+        #Storing the Right Node to be Right Node for Parent 
+        Parent_Node.right = Right_Node
+        #pushing the Parent Node into the Priority Queue 
+        heapq.heappush(Priority_Queue,Parent_Node)
+
+    return Priority_Queue[0]
+
+def Build_Huffman_Codes(Root):
+    #Creating a dictionary to store values and it's Codes 
+    Huffman_Codes = {}
+    #Converting each Value to a code
+    def Traverse(Node,Code):
+        #If the Node has No value , there's No Completeing 
+        if Node is None:
+            return
+        #If the Node has a Value we assign a code that Represent this Value into Huffman_Codes Dictionary 
+        if Node.value is not None:
+           Huffman_Codes[Node.value] = Code
+        #Adding a Zero bit code for each left node 
+        Traverse(Node.left, Code +'0')
+        #Adding a one bit code for each right node 
+        Traverse(Node.right, Code +'1')
+
+    Traverse(Root, '')
+
+    return Huffman_Codes
+
+def Huffman_Encode(Array):
+    #Creating a Frequency table Based on the input array 
+    Frequency_Table = Build_FREQ_Table(Array)
+    #Creating a Huffman Tree Based on the Frequncy table 
+    Huffman_Tree = Build_Huffman_Tree(Frequency_Table)
+    #Creating Huffman Codes Based on the Huffman tree 
+    Huffman_Codes = Build_Huffman_Codes(Huffman_Tree)
+    #Inilization an output for the Encoded Data 
+    Encoded_Data = ''
+    #Encoding the data 
+    for value in Array:
+        Encoded_Data+= Huffman_Codes[value]
+    return Encoded_Data,Huffman_Codes
+
+def Build_Huffman_Tree_Decoder(Huffman_Codes):
+    # Initializing the root of the Huffman tree with a HuffmanNode
+    Root = HuffmanNode()
+    # Looping over each code and value in the Huffman codes dictionary
+    for Code, value in Huffman_Codes.items():
+        Node = Root
+        # Traversing  each bit correspend to a node in a tree
+        for Bit in Code:
+            # If the bit is '0', create a left child node if there's no node, and move to the left child node
+            if Bit == '0':
+                if Node.left is None:
+                    Node.left = HuffmanNode()
+                Node = Node.left
+            # If the bit is '1', create a right child node if there's no node , and move to the right child node
+            elif Bit == '1':
+                if Node.right is None:
+                    Node.right = HuffmanNode()
+                Node = Node.right
+        # Assign the value to the current node
+        Node.value = value
+
+    return Root
+def Huffman_Decode(Encoded_Data, Huffman_Codes):
+    # Creating a reverse dictionary for Huffman Tree where each Code is a Key and values are values of these codes 
+    Reverse_Huffman_Codes = {code: value for value, code in Huffman_Codes.items()}
+    # Create an empty list to store the decoded data
+    Decoded_Data = []
+    # Assigning the current string code in Code
+    Code = ''
+    # Looping over each bit in the Encoded data
+    for bit in Encoded_Data:
+        # Appending the current bit to the code
+        Code += bit
+        # Checking if the current code exists in the reverse Huffman codes
+        if Code in Reverse_Huffman_Codes:
+            # If the code exists, retrieve the corresponding value
+            value = Reverse_Huffman_Codes[Code]
+            # Append the value to the decoded data
+            Decoded_Data.append(value)
+            # Reset the code to an empty string for the next code
+            Code = ''
+    # Return the decoded data
+    return Decoded_Data
+
+
+#Testing the Hufman Encode function on the first Compressed stream _1 for Low compression 
+encoded_data_1, huffman_codes_1 = Huffman_Encode(Compressed_Stream_1)
+print("Huffman encoded data for first compressed Zig-Zag vector:", encoded_data_1)
+print("Huffman codes for first compressed Zig-Zag vector:", huffman_codes_1)
+#Testing the Huffman Decoded function on the first Compressed stream _1 
+decoded_values_1 = Huffman_Decode(encoded_data_1, huffman_codes_1)
+print("Decoded values for first compressed Zig-Zag vector:", decoded_values_1)
+######################################################################
+#Testing the Hufman Encode function on the second Compressed stream _2 for high compression 
+encoded_data_2, huffman_codes_2 = Huffman_Encode(Compressed_Stream_2)
+print("Huffman encoded data for second compressed Zig-Zag vector:", encoded_data_2)
+print("Huffman codes for second compressed Zig-Zag vector:", huffman_codes_2)
+#Testing the Huffman Decoded function on the second Compressed stream _2 
+decoded_values_2 = Huffman_Decode(encoded_data_2, huffman_codes_2)
+print("Decoded values for second compressed Zig-Zag vector:", decoded_values_2)
+
+
+
+def Run_Length_Decode(Decoded_Values):
+    #Array for accumalting the decoded stream from run length 
+    Decoded_Stream = []
+    #Repeat variable for the number of repeated zeros 
+    Repeat =0
+    #Boolen variable for Skiping to the next number if the current one is zero 
+    Skip_Next_Number =False
+    #Looping over the Decoded Values
+    for i  in range(len(Decoded_Values)) :
+         #Checking whether the Skip next is true or false && if it is false we continue 
+        if Skip_Next_Number:
+            Skip_Next_Number = False
+            continue 
+        #Checking whether the current decoded value is zero or not , if zero we start to extend the decoded data with zeros accroding to it's number of repitations         
+        if Decoded_Values[i] == 0:
+            #Assign the number of repeated zeros to repeat 
+            Repeat =Decoded_Values[i+1]
+            #Extending the Decoded stream with zeros accroding to number of zeros 
+            Decoded_Stream.extend([0] * Repeat)
+            #Updataing the Skip Next Number with Zero 
+            Skip_Next_Number = True      
+        else:
+            #Updataing the Decoded stream with the new sequence 
+            Decoded_Stream.append(Decoded_Values[i])
+    return Decoded_Stream
+
+#Run Length Decoding for the first Decoded Values 
+Decompressed_Stream_1=Run_Length_Decode(decoded_values_1)
+print(Decompressed_Stream_1)
+######################################################################
+#Run Length Decoding for the second Decoded Values 
+Decompressed_Stream_2=Run_Length_Decode(decoded_values_2)
+print(Decompressed_Stream_2)
+
+
+def Combine_To_Matrices(Decompressed_Stream):
+    # Calculating the number of Needed Matricies 
+    Num_Matrices = len(Decompressed_Stream) // 64
+    # Calculating the number of Remaining elemnets 
+    Remaining_Elements= len(Decompressed_Stream) % 64
+    # Create an empty list to store the matrices
+    Matricies = []
+    # Loop over the matrices
+    for i in range(Num_Matrices):
+        Matrix_Elements =Decompressed_Stream[i*64:(i+1)*64]
+        # Create an empty 8x8 matrix of integers
+        Matrix = np.zeros((8, 8), dtype=int)
+        # Reverse the zig-zag pattern
+        Zig_Zag_order = [
+            (0, 0), (0, 1), (1, 0), (2, 0), (1, 1), (0, 2), (0, 3), (1, 2),  # First half of zig-zag pattern
+            (2, 1), (3, 0), (4, 0), (3, 1), (2, 2), (1, 3), (0, 4), (0, 5),  # Second half of zig-zag pattern
+            (1, 4), (2, 3), (3, 2), (4, 1), (5, 0), (6, 0), (5, 1), (4, 2),  # Third half of zig-zag pattern
+            (3, 3), (2, 4), (1, 5), (0, 6), (0, 7), (1, 6), (2, 5), (3, 4),  # Fourth half of zig-zag pattern
+            (4, 3), (5, 2), (6, 1), (7, 0), (7, 1), (6, 2), (5, 3), (4, 4),  # Fifth half of zig-zag pattern
+            (3, 5), (2, 6), (1, 7), (2, 7), (3, 6), (4, 5), (5, 4), (6, 3),  # Sixth half of zig-zag pattern
+            (7, 2), (7, 3), (6, 4), (5, 5), (4, 6), (3, 7), (4, 7), (5, 6),  # Seventh half of zig-zag pattern
+            (6, 5), (7, 4), (7, 5), (6, 6), (5, 7), (6, 7), (7, 6), (7, 7)   # Eighth half of zig-zag pattern
+        ]
+        #Looping Over the Matrix Elements
+        for index, value in enumerate(Matrix_Elements):
+            row, col =Zig_Zag_order[index]
+            Matrix[row, col] = value
+
+          Matricies.append(Matrix)
+        # Handle the remaining elements
+    if  Remaining_Elements > 0:
+        Remaining_Elements_Array = np.array(Decompressed_Stream[-Remaining_Elements:])
+        Remaining_Matrix = np.zeros((8, 8))
+        Remaining_Matrix[:Remaining_Elements] =Remaining_Elements_Array.reshape((Remaining_Elements, 1))
+        Matricies.append(Remaining_Matrix)
+
+
+    return Matricies
+
+# Blocks of decompressed matrices
+Blocks_1=Combine_To_Matrices(Decompressed_Stream_1)
+#Showing the Output Blocks 
+print(Blocks_1)
+##########################################################################################
+# Blocks of decompressed matrices
+Blocks_2=Combine_To_Matrices(Decompressed_Stream_2)
+#Shwoing the Output Blocks 
+print(Blocks_2)
+
+def Dequantization(Quantizied_Block, Quantization_table):
+    #Multiply each Block by Quantization Table 
+    Dequantized_Block = np.dot(Quantizied_Block,Quantization_table)
+    return Dequantized_Block
+
+
+Dequantized_Blocks_1 = []
+Dequantized_Blocks_2 = []
+#Testing the function for both Dequantization tables 
+#Performing Dequantization for First Blocks 
+for Block_1 in Blocks_1 :
+    Dequantized_Block_1 = Dequantization(Block_1,Quantization_table_1)
+    Dequantized_Blocks_1.append(Dequantized_Block_1)
+#Performing Dequantization for Second Blocks 
+for Block_2 in Blocks_2 :
+    Dequantized_Block_2 = Dequantization(Block_2,Quantization_table_2)
+    Dequantized_Blocks_2.append(Dequantized_Block_2)
+#Showing the first Dequantization Block in The dequantized_Blocks_1
+print(Dequantized_Blocks_1)
+#Showing the first Dequantization Block in The dequantized_Blocks_1
+#print(Dequantized_Blocks_2)
+
+
+def IDCT_2D(block_8):
+    R, C = block_8.shape
+    # Basis inilitize 
+    basis = np.zeros((R, C))
+    if R != 8 or C != 8:
+        print('Error in block size')
+        return None
+    # Looping over the size of the basis and size of the input
+    IDCT_Result = np.zeros((8, 8))
+    for u in range(8):
+        for v in range(8):
+            for x in range(8):
+                for y in range(8):
+                    # Constructing the basis block
+                    basis[x, y] = np.cos((1/16) * (2*x + 1) * u * np.pi) * np.cos((1/16) * (2*y + 1) * v * np.pi)
+            # Multiplying each value of the input block to the corresponding basis block
+            # and summing the result and storing it in the result_IDCT block
+            IDCT_Result[u, v] = np.sum(block_8 * basis)
+    
+    return IDCT_Result
+
+
+IDCT_Dequantized_Blocks_1=[]
+for Dequantized_Block_1 in Dequantized_Blocks_1:
+    IDCT_Dequantized_Block_1=IDCT_2D(Dequantized_Block_1)
+    IDCT_Dequantized_Blocks_1.append(IDCT_Dequantized_Block_1)
+    print(IDCT_Dequantized_Blocks_1)
+    IDCT_Dequantized_Blocks_2=[]
+for Dequantized_Block_2 in Dequantized_Blocks_2:
+    IDCT_Dequantized_Block_2=IDCT_2D(Dequantized_Block_2)
+    IDCT_Dequantized_Blocks_2.append(IDCT_Dequantized_Block_2)
+    print(IDCT_Dequantized_Blocks_2)
+
+
+def combine_pixels_into_image(Pixels,Width_Of_Desired_image,Height_Of_Desired_image):
+    #Ininlize an image object and save it into Image 
+    image = Image.new("RGB", (Width_Of_Desired_image,Height_Of_Desired_image))
+    # Making sure that the number of pixels matches the image size
+    if len(Pixels) !=Width_Of_Desired_image*Height_Of_Desired_image:
+        raise ValueError("Number of pixels does not match the image size")
+    # Putting the pixel values in the image
+    for i, Pixel_Array in enumerate(Pixels):
+        x = i % Width_Of_Desired_image                       # Get the x-coordinate
+        y = i // Width_Of_Desired_image                      # Get the y-coordinate
+        Pixel_Array = tuple(pixel_array)                      # Convert the pixel array to a tuple
+        image.putpixel((x, y),Pixel_Array)
+
+    return image
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
